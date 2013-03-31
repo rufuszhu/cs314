@@ -5,28 +5,36 @@
 #else
 #  include <GL/glut.h>
 #endif
+#include <time.h>
+#include <windows.h>
 
 #define UP 1
 #define Down 2
 #define LEFT 3
 #define RIGHT 4
 
-
+bool collision();
 void drawFloor();
 void drawSnake();
+void drawFood();
 void run();
 unsigned char camera = 'r';
 
-GLint   lvl      = 1;
 int Width = 400;      // window width (pixels)
 int Height = 400;     // window height (pixels)
+
+// Status Variables
+GLint   lvl      = 1;
+GLint   points = 0;
+GLint   size  = 0;
+GLbyte  gameOver = false;
+GLbyte  EnableLight = true; 
 
 int leftBound = -15;
 int rightBound = 15;
 int upBound = 15;
 int botBound = -15;
 
-int size = 5;
 static GLfloat headRotation=90.0F ;
 
 // Snake Variables
@@ -37,12 +45,26 @@ GLint   _oldX[2] = {};
 GLint   _oldZ[2] = {};
 GLbyte  direction  = 0;
 
+//food pos
+GLint _fx = 0;
+GLint _fz = 0;
+
+void reset()
+{
+	_x = 5;
+	_z = 10;
+	direction = 0;
+	size = 0;
+}
 
 void keyboardCallback(unsigned char c, int x, int y) {
   switch (c) {
   case 'q':
     exit (0);
     break;
+  case 'n':
+	  gameOver = false;
+	  break;
 
   }
   
@@ -54,6 +76,23 @@ void reshapeCallback(int w, int h)
    Width = w;
    Height = h;
    glViewport(0, 0, w, h);
+}
+
+//Display a welcome screen
+void WelcomeScreen(){
+    //char tmp_str[40];
+
+    //glColor3f(1, 0, 0);
+    //glRasterPos2f(0, 20);
+    //Write("Welcome To Snake 3D Game.");
+
+    //glColor3f(0, 0, 1);
+    //glRasterPos2f(0, 10);
+    //Write("Prepared By Salim AWAD");
+    //
+    //glColor3f(0, 0, 1);
+    //glRasterPos2f(0, 0);
+    //Write("To Start Playing please press 'n'. Enjoy");
 }
 
 void displayCallback()
@@ -71,12 +110,20 @@ void displayCallback()
 
   gluLookAt(0,20,45,0,0,0,0,1,0);
   
+  if(!gameOver)
+  {
+	// draw after the opaque objects, since it is translucent
+	drawFloor();
+	glTranslatef(0,0.5,0);
+	//draw snake
+	drawSnake();
+	drawFood();
+  }
+  else{
+	  WelcomeScreen();
+	  reset();
+  }
 
-  // draw after the opaque objects, since it is translucent
-  drawFloor();
-  glTranslatef(0,0.5,0);
-  //draw snake
-  drawSnake();
 
   // draw the buffer to the screen
   glutPostRedisplay();
@@ -84,10 +131,19 @@ void displayCallback()
 
 
   GLenum error = glGetError();
-  if(error != GL_NO_ERROR)
-    printf("ERROR: %s\n", gluErrorString(error));
+  //if(error != GL_NO_ERROR)
+    //printf("ERROR: %s\n", gluErrorString(error));
 }
 
+
+//Generate the New Food that the snake will eat
+void newFood(){
+    time_t seconds;
+    time(&seconds);
+    srand((unsigned int) seconds);
+    _fx = rand() % 30 + leftBound; 
+    _fz = rand() % 30 + botBound;
+}
 
 //---------------------------------------------------------------
 
@@ -135,6 +191,7 @@ void drawSnake()
 	glColor3f(1.0,1.0,0.0);
 	glutSolidCube(1);
 
+	glPopMatrix();
     //Drawing the body
     for(i=0; i<size; i++){//Loop throw the size and draw spheres representing the body
         glPushMatrix();
@@ -144,6 +201,16 @@ void drawSnake()
         glutSolidSphere(1,20,20);
         glPopMatrix();
     }
+}
+
+void drawFood()
+{
+    //Draw the Sphere representing the Food for the snake
+    glPushMatrix();
+    glTranslatef(_fx,0,_fz);
+    glColor3f(0.8, 0.4, 0.4);
+    glutSolidSphere(1,20,20);
+    glPopMatrix();
 }
 //This Function will move the snake according to the directions 
 //Taken from the Keyboard keys
@@ -177,21 +244,21 @@ void Run(int value){
 		glutTimerFunc(130-lvl*4, Run, 0);   
     }
 
-    ////Checks for Collisoin if yes Game Over
-    //if(collision()) gameOver = true;
+    //Checks for Collisoin if yes Game Over
+    if(collision()) gameOver = true;
 
-    ////Checks if the snake ate the food (check the X and Y)
-    //// If yes it will increase the points & the size of the snake & create a new food
-    //if((_x == _bx && _z == _bz) || 
-    //((_x >= _bx) && (_x <= _bx + 4) && (_z >= _bz) && (_z <= _bz + 4)) ||
-    //((_x <= _bx) && (_x >= _bx - 4) && (_z <= _bz) && (_z >= _bz - 4)) ||
-    //((_x <= _bx) && (_x >= _bx - 4) && (_z >= _bz) && (_z <= _bz + 4)) ||
-    //((_x >= _bx) && (_x <= _bx + 4) && (_z <= _bz) && (_z >= _bz - 4))){
-    //    points++;
-    //    if(points < 100) size++;
-    //    if(points%5 == 0 && lvl < 15) lvl++;
-    //    newFood();
-    //}
+    //Checks if the snake ate the food (check the X and Y)
+    // If yes it will increase the points & the size of the snake & create a new food
+    if((_x == _fx && _z == _fz) || 
+    ((_x >= _fx) && (_x <= _fx + 1) && (_z >= _fz) && (_z <= _fz + 1)) ||
+    ((_x <= _fx) && (_x >= _fx - 1) && (_z <= _fz) && (_z >= _fz - 1)) ||
+    ((_x <= _fx) && (_x >= _fx - 1) && (_z >= _fz) && (_z <= _fz + 1)) ||
+    ((_x >= _fx) && (_x <= _fx + 1) && (_z <= _fz) && (_z >= _fz - 1))){
+        points++;
+        if(points < 100) size++;
+        if(points%5 == 0 && lvl < 15) lvl++;
+        newFood();
+    }
 
     for(i = 0; i<size; i++){// Save the positions of the body parts
         _oldX[0]       = _oldX[1];
@@ -206,6 +273,16 @@ void Run(int value){
     glutTimerFunc(130-lvl*4, Run, 0);                    
 }
 
+//This Function Will Check for Collision
+bool collision(){
+    int i;
+
+    for(i=0; i<size; i++){
+        if(bodyPos[0][i] == _x && bodyPos[1][i] == _z) 
+        return true;
+    }
+    return false;
+}
 
 void Special(int key, int x, int y){
     switch(key){
