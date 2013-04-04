@@ -20,8 +20,8 @@ void drawFood();
 void run();
 unsigned char camera = 'r';
 
-int Width = 400;      // window width (pixels)
-int Height = 400;     // window height (pixels)
+int Width = 800;      // window width (pixels)
+int Height = 800;     // window height (pixels)
 
 // Status Variables
 GLint   lvl      = 1;
@@ -35,7 +35,9 @@ int rightBound = 15;
 int upBound = 15;
 int botBound = -15;
 
-static GLfloat headRotation=90.0F ;
+// Variables to check the FPS
+DWORD   g_dwLastFPS = 0;
+int		g_nFPS = 0, g_nFrames = 0;
 
 // Snake Variables
 GLint   bodyPos[2][100] = {{}};
@@ -49,6 +51,11 @@ GLbyte  direction  = 0;
 GLint _fx = 0;
 GLint _fz = 0;
 
+//camera mode
+
+bool moveMode = false;
+bool fixMode = true;
+
 void reset()
 {
 	_x = 5;
@@ -60,15 +67,74 @@ void reset()
 void keyboardCallback(unsigned char c, int x, int y) {
   switch (c) {
   case 'q':
-    exit (0);
-    break;
-  case 'n':
+      exit (0);
+	  break;
+  case 'f':
+	  fixMode = true;
+	  moveMode = false;
+	  break;
+  case 'm':
+	  moveMode = true;
+	  fixMode = false;
+  case 'r':
 	  gameOver = false;
 	  break;
 
   }
   
   glutPostRedisplay();
+}
+
+void Write(char *string){//Write string on the screen
+    while(*string)
+        glutBitmapCharacter(GLUT_BITMAP_8_BY_13, *string++);
+}
+
+void GameStatus(){
+
+    char tmp_str[40];
+
+    // Print the status of the game on the screen
+    glColor3f(0, 0, 0);
+    glRasterPos2f(0, 13);
+
+    sprintf_s(tmp_str, "Level: %d Points: %d", lvl, points);
+    Write(tmp_str);
+}
+
+//initialize the first configurations
+void Initialize(void) 
+{
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(0.7f, 0.9f, 1.0f, 1.0f); //Change the background to sky blue
+    if(EnableLight){
+        glEnable(GL_COLOR_MATERIAL); //Enable color
+        glEnable(GL_LIGHTING); //Enable lighting
+        glEnable(GL_LIGHT0); //Enable light #0
+        glEnable(GL_LIGHT1); //Enable light #1
+        glEnable(GL_NORMALIZE); //Automatically normalize normals
+    }
+}
+
+//This Function will calculate the frame per second to display on the screen
+void getFPS(){
+    char tmp_str[40]; 
+
+    if( GetTickCount() - g_dwLastFPS >= 1000 )				// When A Second Has Passed...
+    {
+        g_dwLastFPS = GetTickCount();					// Update Our Time Variable
+        g_nFPS = g_nFrames;						// Save The FPS
+        g_nFrames = 0;							// Reset The FPS Counter
+    }
+    g_nFrames++;
+
+    glRasterPos2f(0, 14);
+    sprintf_s(tmp_str, "FPS: %d", g_nFPS);
+    Write(tmp_str);
+    
+    glRasterPos2f(50, 60);
+    sprintf_s(tmp_str, "Pos X: %d Pos Z: %d", _x, _z);
+    Write(tmp_str);
 }
 
 void reshapeCallback(int w, int h)
@@ -80,19 +146,15 @@ void reshapeCallback(int w, int h)
 
 //Display a welcome screen
 void WelcomeScreen(){
-    //char tmp_str[40];
+    char tmp_str[40];
 
-    //glColor3f(1, 0, 0);
-    //glRasterPos2f(0, 20);
-    //Write("Welcome To Snake 3D Game.");
-
-    //glColor3f(0, 0, 1);
-    //glRasterPos2f(0, 10);
-    //Write("Prepared By Salim AWAD");
-    //
-    //glColor3f(0, 0, 1);
-    //glRasterPos2f(0, 0);
-    //Write("To Start Playing please press 'n'. Enjoy");
+    glColor3f(1, 0, 0);
+    glRasterPos2f(0, 2);
+    Write("Welcome To Snake 3D Game.");
+    
+    glColor3f(1, 0, 0);
+    glRasterPos2f(0, 0);
+    Write("To Start Playing please press 'r'. Enjoy");
 }
 
 void displayCallback()
@@ -108,10 +170,45 @@ void displayCallback()
   glMatrixMode( GL_MODELVIEW );
   glLoadIdentity();
 
-  gluLookAt(0,20,45,0,0,0,0,1,0);
+
+  if(fixMode)
+  gluLookAt(0,30,40,0,0,0,0,1,0);
+
+  if(moveMode)
+  {
+
+    switch(direction){
+      case RIGHT:
+	glTranslatef(0,0,-30);
+    gluLookAt(-3,3,0,0,0,0,0,1,0);	 
+	glTranslatef(-_x,0,-_z);            
+          break;
+      case LEFT:
+	glTranslatef(0,0,-30);
+    gluLookAt(3,3,0,0,0,0,0,1,0);	 
+	glTranslatef(-_x,0,-_z);  
+          break;
+      case UP:
+	glTranslatef(0,0,-30);
+    gluLookAt(0,3,-3,0,0,0,0,1,0);	 
+	glTranslatef(-_x,0,-_z);          
+          break;
+      case Down:
+	glTranslatef(0,0,-30);
+    gluLookAt(0,3,3,0,0,0,0,1,0);	 
+	glTranslatef(-_x,0,-_z);           
+          break;
+	  default:
+	glTranslatef(0,0,-30);
+    gluLookAt(0,3,3,0,0,0,0,1,0);	 
+	glTranslatef(-_x,0,-_z); 
+	}
+
+  }
   
   if(!gameOver)
   {
+
 	// draw after the opaque objects, since it is translucent
 	drawFloor();
 	glTranslatef(0,0.5,0);
@@ -124,7 +221,8 @@ void displayCallback()
 	  reset();
   }
 
-
+      getFPS();
+  GameStatus();
   // draw the buffer to the screen
   glutPostRedisplay();
   glutSwapBuffers();
@@ -219,30 +317,26 @@ void Run(int value){
 
     _oldX[1] = _x;
     _oldZ[1] = _z;
+
+
     switch(direction){
       case RIGHT:
-          headRotation =90;
           _x += 1;    
           if(_x > rightBound) _x = leftBound;//This will check if the snake is going into the border so it will appear on the other side
           break;
       case LEFT:
-          headRotation =-90;
           _x -= 1;    
          if(_x < leftBound) _x = rightBound;//This will check if the snake is going into the border so it will appear on the other side
           break;
       case UP:
-          headRotation =0;
           _z += 1;    
           if(_z > upBound) _z = botBound;//This will check if the snake is going into the border so it will appear on the other side
           break;
       case Down:
-          headRotation =180;
           _z -= 1;    
           if(_z < botBound) _z = upBound;//This will check if the snake is going into the border so it will appear on the other side
           break;
-
-		glutTimerFunc(130-lvl*4, Run, 0);   
-    }
+		}
 
     //Checks for Collisoin if yes Game Over
     if(collision()) gameOver = true;
@@ -269,8 +363,11 @@ void Run(int value){
         bodyPos[1][i] = _oldZ[0];
     }
 
-    ////Set the Timer
-    glutTimerFunc(130-lvl*4, Run, 0);                    
+
+    //Set the Timer
+    glutTimerFunc(130-lvl*4, Run, 0);
+	//glutTimerFunc(30, Run, 0); 
+	//glutPostRedisplay();
 }
 
 //This Function Will Check for Collision
@@ -285,6 +382,8 @@ bool collision(){
 }
 
 void Special(int key, int x, int y){
+	if(fixMode)
+	{
     switch(key){
     case GLUT_KEY_RIGHT     :
         if(direction != LEFT)
@@ -302,8 +401,35 @@ void Special(int key, int x, int y){
         if(direction != Down)
             direction = UP;
         break;
+	}
 
     }
+	else
+	{
+		switch(key){
+		case GLUT_KEY_RIGHT     :
+        if(direction == LEFT)
+            direction = Down;
+		else if(direction == RIGHT)
+			direction = UP;
+		else if(direction == UP)
+			direction = LEFT;
+		else if(direction == Down)
+			direction = RIGHT;
+        break;
+
+		case GLUT_KEY_LEFT      :
+        if(direction == LEFT)
+            direction = UP;
+		else if(direction == RIGHT)
+			direction = Down;
+		else if(direction == UP)
+			direction = RIGHT;
+		else if(direction == Down)
+			direction = LEFT;
+        break;
+		}
+	}
 }
 //---------------------------------------------------------------
 
@@ -352,7 +478,7 @@ int main(int argc, char **argv)
 
   
   Run(0);
-
+  Initialize();
   // pass control over to GLUT
   glutMainLoop();
   
